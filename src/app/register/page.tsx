@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from 'react'
-import { useAuth } from '@/lib/auth-context'
+import { useAuth } from '@/lib/providers'
 import { Button } from '@/components/ui/button'
 
 export default function RegisterPage() {
-  const { register, loading } = useAuth()
+  const { register, isLoading } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -14,8 +14,13 @@ export default function RegisterPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    
+    // Get redirect URL from query parameters
+    const searchParams = new URLSearchParams(window.location.search)
+    const redirectUrl = searchParams.get('redirect')
+    
     try {
-      await register(name, email, password)
+      await register({ name, email, password, confirmPassword: password }, redirectUrl || undefined)
     } catch (err: any) {
       setError(err.message || 'Registration failed')
     }
@@ -52,8 +57,8 @@ export default function RegisterPage() {
             required
           />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? 'Signing up...' : 'Sign Up'}
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? 'Signing up...' : 'Sign Up'}
         </Button>
         <div className="text-center text-sm text-gray-600">
           Already have an account? <a href="/login" className="font-medium text-black hover:underline">Sign in</a>

@@ -1,30 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
 import User from '@/db/user.model'
-import { hashPassword } from '@/lib/auth'
 import { signAccessToken, signRefreshToken } from '@/lib/jwt'
+import { registerSchema } from '@/lib/validations'
+import { z } from 'zod'
 
 export async function POST(req: NextRequest) {
   try {
     await dbConnect()
-    const { name, email, password } = await req.json()
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    
+    // Parse and validate input
+    const body = await req.json()
+    const validatedData = registerSchema.parse(body)
+    
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: validatedData.email.toLowerCase() })
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 409 }
+      )
     }
-    const existing = await User.findOne({ email })
-    if (existing) {
-      return NextResponse.json({ error: 'Email already in use' }, { status: 409 })
-    }
-    const hashed = await hashPassword(password)
-    const user = await User.create({ name, email, password: hashed })
+    
+    // Create new user (password will be hashed by pre-save middleware)
+    const user = await User.create({
+      name: validatedData.name,
+      email: validatedData.email.toLowerCase(),
+      password: validatedData.password
+    })
+    
+    // Generate tokens
     const accessToken = signAccessToken({ id: user._id, role: user.role })
     const refreshToken = signRefreshToken({ id: user._id, role: user.role })
+    
+    // Update user with refresh token
+    user.refreshTokens.push(refreshToken)
+    user.lastLogin = new Date()
+    await user.save()
+    
     return NextResponse.json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      user: user.toJSON(),
       accessToken,
       refreshToken,
-    })
-  } catch (e) {
-    return NextResponse.json({ error: 'Registration failed' }, { status: 500 })
+    }, { status: 201 })
+  } catch (error) {
+    console.error('Registration error:', error)
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation failed', details: error.errors },
+        { status: 400 }
+      )
+    }
+    
+    // Handle mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map((err: any) => err.message)
+      return NextResponse.json(
+        { error: 'Validation failed', details: validationErrors },
+        { status: 400 }
+      )
+    }
+    
+    return NextResponse.json(
+      { error: 'Registration failed' },
+      { status: 500 }
+    )
   }
-} 
+}

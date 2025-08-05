@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { useAuth } from '@/lib/auth-context'
+import { useAuth } from '@/lib/providers'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 
@@ -13,7 +13,7 @@ interface User {
 }
 
 export default function AdminUsersPage() {
-  const { user, accessToken, loading } = useAuth()
+  const { user, accessToken, isLoading } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [fetching, setFetching] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -21,10 +21,12 @@ export default function AdminUsersPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'admin')) {
+    if (!isLoading && (!user || user.role !== 'admin')) {
       router.replace('/login')
+    } else if (!isLoading) {
+      // No action needed here
     }
-  }, [user, loading, router])
+  }, [user, isLoading, router])
 
   useEffect(() => {
     if (!accessToken) return
@@ -65,7 +67,7 @@ export default function AdminUsersPage() {
     }
   }
 
-  if (loading || fetching) {
+  if (isLoading || fetching) {
     return <div className="flex min-h-screen items-center justify-center text-gray-600">Loading...</div>
   }
   if (error) {

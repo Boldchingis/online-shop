@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
-import Product from '@/db/product.model'
+import Product from '@/db/product-model'
 import { withAuth } from '@/middleware/auth'
 
 async function handler(req: NextRequest) {

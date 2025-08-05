@@ -1,13 +1,12 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, ShoppingBag, Truck, Shield, HeadphonesIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import ProductCard from '@/components/ProductCard'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import FeaturedProducts, { FeaturedProductsSkeleton } from '@/components/server/FeaturedProducts'
 
 export default function HomePage() {
-  // TODO: Replace 'any' with Product[] when real data is fetched
-  const featuredProducts: any[] = []
-  const loading = true // Simulate loading state for now
 
   return (
     <div className="min-h-screen bg-white">
@@ -64,24 +63,9 @@ export default function HomePage() {
               </Button>
             </Link>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="flex flex-col space-y-2">
-                  <Skeleton className="h-48 w-full rounded" />
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              ))
-            ) : featuredProducts.length === 0 ? (
-              <div className="col-span-4 text-center text-gray-400">No featured products yet.</div>
-            ) : (
-              featuredProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))
-            )}
-          </div>
+          <Suspense fallback={<FeaturedProductsSkeleton />}>
+            <FeaturedProducts limit={4} />
+          </Suspense>
         </div>
       </section>
     </div>

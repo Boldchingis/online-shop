@@ -1,61 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import dbConnect from '@/lib/db'
-
-// Mock products data - replace with actual MongoDB models
-const mockProducts = [
-  {
-    id: '1',
-    name: 'Premium Wireless Headphones',
-    description: 'High-quality wireless headphones with noise cancellation',
-    price: 299.99,
-    images: ['/headphones-1.jpg', '/headphones-2.jpg'],
-    category: 'Electronics',
-    inStock: true,
-    rating: 4.5,
-    reviews: 128,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '2',
-    name: 'Minimalist Watch',
-    description: 'Elegant minimalist watch with leather strap',
-    price: 199.99,
-    images: ['/watch-1.jpg', '/watch-2.jpg'],
-    category: 'Fashion',
-    inStock: true,
-    rating: 4.8,
-    reviews: 89,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '3',
-    name: 'Organic Cotton T-Shirt',
-    description: 'Comfortable organic cotton t-shirt in black',
-    price: 29.99,
-    images: ['/tshirt-1.jpg', '/tshirt-2.jpg'],
-    category: 'Clothing',
-    inStock: true,
-    rating: 4.2,
-    reviews: 256,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-  {
-    id: '4',
-    name: 'Smartphone Case',
-    description: 'Durable smartphone case with premium finish',
-    price: 49.99,
-    images: ['/case-1.jpg', '/case-2.jpg'],
-    category: 'Electronics',
-    inStock: false,
-    rating: 4.0,
-    reviews: 67,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  },
-]
+import Product from '@/db/product-model'
 
 export async function GET(request: NextRequest) {
   try {
@@ -68,33 +13,44 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '12')
     
-    let filteredProducts = mockProducts
+    // Build MongoDB query
+    let query: any = {}
     
     // Filter by category
     if (category) {
-      filteredProducts = filteredProducts.filter(product => 
-        product.category.toLowerCase() === category.toLowerCase()
-      )
+      query.category = new RegExp(category, 'i')
     }
     
     // Filter by search
     if (search) {
-      filteredProducts = filteredProducts.filter(product =>
-        product.name.toLowerCase().includes(search.toLowerCase()) ||
-        product.description.toLowerCase().includes(search.toLowerCase())
-      )
+      query.$or = [
+        { name: new RegExp(search, 'i') },
+        { description: new RegExp(search, 'i') }
+      ]
     }
     
-    // Pagination
-    const startIndex = (page - 1) * limit
-    const endIndex = startIndex + limit
-    const paginatedProducts = filteredProducts.slice(startIndex, endIndex)
+    // Get total count for pagination
+    const total = await Product.countDocuments(query)
+    
+    // Get products with pagination
+    const products = await Product.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+    
+    // Transform MongoDB _id to id for frontend compatibility
+    const transformedProducts = products.map(product => ({
+      ...product,
+      id: product._id.toString(),
+      _id: undefined
+    }))
     
     return NextResponse.json({
-      products: paginatedProducts,
-      total: filteredProducts.length,
+      products: transformedProducts,
+      total,
       page,
-      totalPages: Math.ceil(filteredProducts.length / limit),
+      totalPages: Math.ceil(total / limit),
     })
   } catch (error) {
     console.error('Error fetching products:', error)
@@ -103,4 +59,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

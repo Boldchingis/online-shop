@@ -1,11 +1,13 @@
 "use client"
 
 import { useState } from 'react'
-import { useAuth } from '@/lib/auth-context'
+import { useAuth } from '@/lib/providers'
 import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
-  const { login, loading } = useAuth()
+  const router = useRouter()
+  const { login, isLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -13,8 +15,13 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    
+    // Get redirect URL from query parameters
+    const searchParams = new URLSearchParams(window.location.search)
+    const redirectUrl = searchParams.get('redirect')
+    
     try {
-      await login(email, password)
+      await login({ email, password }, redirectUrl || undefined)
     } catch (err: any) {
       setError(err.message || 'Login failed')
     }
@@ -43,8 +50,8 @@ export default function LoginPage() {
             required
           />
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
-          {loading ? 'Signing in...' : 'Sign In'}
+        <Button type="submit" className="w-full" disabled={isLoading}>
+          {isLoading ? 'Signing in...' : 'Sign In'}
         </Button>
         <div className="text-center text-sm text-gray-600">
           Don&apos;t have an account? <a href="/register" className="font-medium text-black hover:underline">Sign up</a>
